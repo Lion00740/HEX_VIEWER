@@ -1,0 +1,3 @@
+﻿  hex_viewer.cpp
+MSVCRT.lib(exe_main.obj) : error LNK2001: неразрешенный внешний символ _main.
+E:\Work\HEX_VIEWER\Release\HEX_VIEWER.exe : fatal error LNK1120: неразрешенных внешних элементов: 1
