@@ -1,3 +1,6 @@
 ﻿  hex_viewer.cpp
+E:\Work\HEX_VIEWER\hex_viewer.cpp(89,15): warning C4312: приведение типов: преобразование из "LONG" в "HINSTANCE" большего размера
+E:\Work\HEX_VIEWER\hex_viewer.cpp(85,27): warning C4101: y: неиспользованная локальная переменная
+E:\Work\HEX_VIEWER\hex_viewer.cpp(85,24): warning C4101: x: неиспользованная локальная переменная
 MSVCRTD.lib(exe_main.obj) : error LNK2019: ссылка на неразрешенный внешний символ main в функции "int __cdecl invoke_main(void)" (?invoke_main@@YAHXZ).
 E:\Work\HEX_VIEWER\x64\Debug\HEX_VIEWER.exe : fatal error LNK1120: неразрешенных внешних элементов: 1
