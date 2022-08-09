@@ -1,4 +1,4 @@
 ﻿  hex_viewer.cpp
-E:\Work\HEX_VIEWER\hex_viewer.cpp(87,6): warning C4101: hdc: неиспользованная локальная переменная
-E:\Work\HEX_VIEWER\hex_viewer.cpp(147,6): warning C4101: hdc: неиспользованная локальная переменная
+E:\Work\HEX_VIEWER\hex_viewer.cpp(91,6): warning C4101: hdc: неиспользованная локальная переменная
+E:\Work\HEX_VIEWER\hex_viewer.cpp(128,6): warning C4101: hdc: неиспользованная локальная переменная
   HEX_VIEWER.vcxproj -> E:\Work\HEX_VIEWER\Debug\HEX_VIEWER.exe
