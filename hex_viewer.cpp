@@ -6,6 +6,7 @@
 #define NUMBER_OF_SYMBOLS_PER_LINE 16
 #define SIZE_HEX_BUF 3
 #define SIZE_OFFSET_BUF 11
+#define NUMBER_OF_WINDOW 2
 
 struct FileBuffer
 {
@@ -16,35 +17,67 @@ struct FileBuffer
 
 struct hWndChildWindow
 {
-	HWND hWndChild[2];
-	HWND hWndButton[2];
-	HWND hWndEdit[2];
+	HWND hWndChild;
+	HWND hWndButton;
+	HWND hWndEdit;
 };
 
 struct TextSize
 {
-	int cxChar, cyChar, cxCaps, nHeightButton;
+	int cxChar = 0, cyChar = 0, cxCaps = 0;
+	int nHeightButton = 0;
 };
 
 struct VScroll
 {
-	int iVscrollMax;
-	int iVscrollPos;
-	int iVscrollInc;
+	int iVscrollMax = 0;
+	int iVscrollPos = 0;
+	int iVscrollInc = 0;
 };
 
-LRESULT CALLBACK	WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK	ChildWndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam);
-BOOL				ReadFromFiles(LPWSTR path, FileBuffer *fBuffer);
-BOOL				OpenFile(HWND hWnd, FileBuffer *fBuffer, int ID);
-void				PaintText(HWND hWnd, int cyClient, TextSize SizeSymbol, int iVscrollPos, FileBuffer fBuffer);
-void				SetScrollBySize(HWND hWnd, int cyClient, int cyChar, int* iVscrollPos, int* iVscrollMax, UINT64 ullNumLines);
+//struct UserDataStruct
+//{
+//	struct TextSize 
+//	{
+//		int cxChar = 0, cyChar = 0, cxCaps = 0;
+//		int nHeightButton = 0;
+//	} SizeSymbol;
+//	
+//	struct VScroll
+//	{
+//		int iVscrollMax = 0;
+//		int iVscrollPos = 0;
+//		int iVscrollInc = 0;
+//	} Vscroll;
+//
+//	struct FileBuffer 
+//	{
+//		LPCSTR lpcBuffer = NULL;
+//		UINT64 ullSizeBuffer = 0;
+//		UINT64 ullNumLines = 0;
+//	} FileBuf;
+//
+//};
+
+struct UserDataStruct
+{
+	TextSize SizeSymbol;
+	VScroll Vscroll;
+	FileBuffer FileBuf[NUMBER_OF_WINDOW];
+	UINT64 ullMaxNumlines = 0;
+};
+
+LRESULT CALLBACK	WndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam, _In_ LPARAM lParam);
+LRESULT CALLBACK	ChildWndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam, _In_ LPARAM lParam);
+BOOL				ReadFromFiles(LPWSTR path, FileBuffer *FileBuf);
+BOOL				OpenFile(HWND hWnd, FileBuffer *FileBuf, HWND hWndEdit);
+void				PaintText(HWND hWnd, UserDataStruct UserData, int ID);
+void				SetScrollBySize(HWND hWnd, int cyClient, UserDataStruct* UserData, int ID);
 TextSize			GetSizeSymbol(HWND hWnd);
 FileBuffer			FileInfo(HANDLE hFileMap, HANDLE FileToRead);
-void				ClearBuffer(FileBuffer* fBuffer);
-void				CreateChildWindow(HWND* hWnd, DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y,
-										int nWidth, int nHeight, HWND hWndParent, int hMenu, HINSTANCE hInstance, LPVOID lpParam);
-void				MoveChildWindow(HWND* hWnd, int X, int Y, int nWidth, int nHeight, int nRatio, BOOL bRepaint);
+void				ClearBuffer(FileBuffer* FileBuf);
+void				CreateChildWindow(HWND hWnd, hWndChildWindow* hWndStruct);
+void				MoveChildWindow(HWND hWnd, hWndChildWindow* hWndStruct, TextSize SizeSymbol);
 
 int WINAPI WinMain(_In_ HINSTANCE hInst, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR lpCmdLine, _In_ int iCmdShow)
 {
@@ -52,6 +85,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInst, _In_opt_ HINSTANCE hPrevInst, _In_ LPST
 	MSG msg;
 	WCHAR AppName[] = L"HEX_VIEWER";
 	WNDCLASSEX wcex;
+
 	wcex.cbSize = sizeof(WNDCLASSEX);
 	wcex.style = CS_HREDRAW | CS_VREDRAW;
 	wcex.lpfnWndProc = WndProc;
@@ -100,104 +134,93 @@ int WINAPI WinMain(_In_ HINSTANCE hInst, _In_opt_ HINSTANCE hPrevInst, _In_ LPST
 	return (int)msg.wParam;
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
-	//static FileBuffer fBuffer[2];
-	static hWndChildWindow hWndStruct;
-	static VScroll Vscroll;
-	static TextSize SizeSymbol;
-	RECT rect;
-	int cxBlock, cyBlock;
+	static UserDataStruct UserData;
+	static hWndChildWindow hWndStruct[NUMBER_OF_WINDOW];
+	
 	switch (iMsg) 
 	{
 	case WM_CREATE:
-
-		SizeSymbol = GetSizeSymbol(hWnd);
-		//SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG)&SizeSymbol);
-		SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG)&Vscroll);
-
-		CreateChildWindow(hWndStruct.hWndChild, WS_EX_COMPOSITED, L"HEX_VIEWER_CHILD", NULL, WS_CHILDWINDOW | WS_VISIBLE | WS_VSCROLL | WS_BORDER, 0, 0, 0, 0, hWnd, 0, (HINSTANCE)GetWindowLong(hWnd, GWLP_HINSTANCE), NULL);
 		
-		CreateChildWindow(hWndStruct.hWndButton, 0, L"button", L">>", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_BORDER, 0, 0, 0, 0, hWnd, 2, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
+		UserData.SizeSymbol = GetSizeSymbol(hWnd);
 		
-		CreateChildWindow(hWndStruct.hWndEdit, 0, L"edit", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 0, 0, 0, hWnd, 4, (HINSTANCE)GetWindowLong(hWnd, GWLP_HINSTANCE), NULL);
+		SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG)&UserData);
+
+		CreateChildWindow(hWnd, hWndStruct);
 
 		return 0;
 	case WM_COMMAND:
 		switch (wParam)
 		{
 		case 2:
-			/*SetWindowLongPtr(hWndStruct.hWndChild[0], GWLP_USERDATA, (LONG)&fBuffer[0]);
-			if (!OpenFile(hWnd, &fBuffer[0], GetWindowLong(hWndStruct.hWndEdit[0], GWL_ID)))
+			
+			if (!OpenFile(hWnd, &UserData.FileBuf[0], hWndStruct[0].hWndEdit))
 			{
 				break;
-			}*/
-			SendMessage(hWndStruct.hWndChild[0], WM_COMMAND, GetDlgCtrlID(hWndStruct.hWndEdit[0]), lParam);
+			}
+			SendMessage(hWndStruct[0].hWndChild, WM_COMMAND, wParam, lParam);
 			break;
 		case 3:
-			/*SetWindowLongPtr(hWndStruct.hWndChild[1], GWLP_USERDATA, (LONG)&fBuffer[1]);
-			if (!OpenFile(hWnd, &fBuffer[1], GetWindowLong(hWndStruct.hWndEdit[1], GWL_ID)))
+			
+			if (!OpenFile(hWnd, &UserData.FileBuf[1], hWndStruct[1].hWndEdit))
 			{
 				break;
-			}*/
-			SendMessage(hWndStruct.hWndChild[1], WM_COMMAND, GetDlgCtrlID(hWndStruct.hWndEdit[1]), lParam);
+			}
+			SendMessage(hWndStruct[1].hWndChild, WM_COMMAND, wParam, lParam);
 			break;
 		}
 		return 0;
-	case WM_SIZE:
-
-		GetClientRect(hWnd, &rect);
+	case WM_SIZE: 
+	{
+		MoveChildWindow(hWnd, hWndStruct, UserData.SizeSymbol);
 		
-		cxBlock = rect.right / 2;
-		cyBlock = rect.bottom;
+		return 0; 
+	}
+	case WM_VSCROLL: 
+	{
+		RECT rect;
+		VScroll* Vscroll = &UserData.Vscroll;
 
-		MoveChildWindow(hWndStruct.hWndChild, cxBlock, SizeSymbol.nHeightButton, cxBlock, cyBlock - SizeSymbol.nHeightButton, 0, TRUE);
+		GetClientRect(hWndStruct[0].hWndChild, &rect);
 
-		MoveChildWindow(hWndStruct.hWndButton, cxBlock, 0, 4 * SizeSymbol.cxCaps, SizeSymbol.nHeightButton, 1, TRUE);
-
-		MoveChildWindow(hWndStruct.hWndEdit, cxBlock, 0, cxBlock - 4 * SizeSymbol.cxCaps, SizeSymbol.nHeightButton, 0, TRUE);
-		
-		return 0;
-	case WM_VSCROLL:
-		Vscroll = *((VScroll*)GetWindowLongPtr(hWnd, GWLP_USERDATA));
-		GetClientRect(hWndStruct.hWndChild[0], &rect);
 		switch (LOWORD(wParam))
 		{
 		case SB_LINEUP:
-			Vscroll.iVscrollInc = -1;
+			Vscroll->iVscrollInc = -1;
 			break;
 		case SB_LINEDOWN:
-			Vscroll.iVscrollInc = 1;
+			Vscroll->iVscrollInc = 1;
 			break;
 		case SB_PAGEUP:
-			Vscroll.iVscrollInc = min(-1, -rect.bottom / SizeSymbol.cyChar);
+			Vscroll->iVscrollInc = min(-1, -rect.bottom / UserData.SizeSymbol.cyChar);
 			break;
 		case SB_PAGEDOWN:
-			Vscroll.iVscrollInc = max(1, rect.bottom / SizeSymbol.cyChar);
+			Vscroll->iVscrollInc = max(1, rect.bottom / UserData.SizeSymbol.cyChar);
 			break;
 		case SB_THUMBTRACK:
-			Vscroll.iVscrollInc = HIWORD(wParam) - Vscroll.iVscrollPos;
+			Vscroll->iVscrollInc = HIWORD(wParam) - Vscroll->iVscrollPos;
 			break;
 		default:
-			Vscroll.iVscrollInc = 0;
+			Vscroll->iVscrollInc = 0;
 		}
 
-		Vscroll.iVscrollInc = max(-Vscroll.iVscrollPos, min(Vscroll.iVscrollInc, Vscroll.iVscrollMax - Vscroll.iVscrollPos));
+		Vscroll->iVscrollInc = max(-Vscroll->iVscrollPos, min(Vscroll->iVscrollInc, Vscroll->iVscrollMax - Vscroll->iVscrollPos));
 
-		if (Vscroll.iVscrollInc != 0)
+		if (Vscroll->iVscrollInc != 0)
 		{
-			
-			Vscroll.iVscrollPos += Vscroll.iVscrollInc;
-			for (int i = 0; i < 2; i++) 
+
+			Vscroll->iVscrollPos += Vscroll->iVscrollInc;
+			for (int i = 0; i < 2; i++)
 			{
-				SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG)&Vscroll);
-				ScrollWindow(hWndStruct.hWndChild[i], 0, -SizeSymbol.cyChar * Vscroll.iVscrollInc, NULL, NULL);
-				SetScrollPos(hWndStruct.hWndChild[i], SB_VERT, Vscroll.iVscrollPos, TRUE);
-				UpdateWindow(hWndStruct.hWndChild[i]);
+				ScrollWindow(hWndStruct[i].hWndChild, 0, -UserData.SizeSymbol.cyChar * Vscroll->iVscrollInc, NULL, NULL);
+				SetScrollPos(hWndStruct[i].hWndChild, SB_VERT, Vscroll->iVscrollPos, TRUE);
+				UpdateWindow(hWndStruct[i].hWndChild);
 			}
 		}
 
-		return 0;
+		return 0; 
+	}
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
@@ -207,90 +230,51 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-LRESULT CALLBACK ChildWndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK ChildWndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
-	static FileBuffer FileBuf[2];
-	static TextSize SizeSymbol;
-	static VScroll Vscroll;
-	int iVscrollInc;
-	static int id;
-	static int cyClient, iVscrollMax, iVscrollPos, cxClient;
+	static UserDataStruct* UserData;
+	static int cyClient;
 	
 	switch (iMsg)
 	{
 	case WM_CREATE:
-		id = 0;
-		//SizeSymbol = *((TextSize*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA));
-		SizeSymbol = GetSizeSymbol(hWnd);
-		Vscroll = *((VScroll*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA));
+		UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
 		return 0;
 	case WM_COMMAND:
-	
-		//fbuf = *((FileBuffer*)GetWindowLongPtr(hWnd, GWLP_USERDATA));
-		id = GetWindowLong(hWnd, GWL_ID);
-		if (!OpenFile(hWnd, &FileBuf[id], wParam))
-		{
-			break;
-		}
-		Vscroll.iVscrollPos = 0;
-		SetScrollBySize(hWnd, cyClient, SizeSymbol.cyChar, &Vscroll.iVscrollPos, &Vscroll.iVscrollMax, FileBuf[id].ullNumLines);
-		SetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA, (LONG)&Vscroll);
-		break;
-		return 0;
+	{
+		int ID = GetWindowLong(hWnd, GWL_ID);
+
+		UserData->Vscroll.iVscrollPos = 0;
+		SetScrollBySize(hWnd, cyClient, UserData, ID);
+		
+		return 0; 
+	}
 	case WM_SIZE:
-		
-		id = GetWindowLong(hWnd, GWL_ID);
-		
+	{
+		int ID = GetWindowLong(hWnd, GWL_ID);
+
 		cyClient = HIWORD(lParam);
-
-		SetScrollBySize(hWnd, cyClient, SizeSymbol.cyChar, &Vscroll.iVscrollPos, &Vscroll.iVscrollMax, FileBuf[id].ullNumLines);
-		SetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA, (LONG)&Vscroll);
-		return 0;
+		SetScrollBySize(hWnd, cyClient, UserData, ID);
+		
+		return 0; 
+	}
 	case WM_VSCROLL:
+
 		SendMessage(GetParent(hWnd), WM_VSCROLL, wParam, lParam);
-		/*switch (LOWORD(wParam))
-		{
-		case SB_LINEUP:
-			iVscrollInc = -1;
-			break;
-		case SB_LINEDOWN:
-			iVscrollInc = 1;
-			break;
-		case SB_PAGEUP:
-			iVscrollInc = min(-1, -cyClient / SizeSymbol.cyChar);
-			break;
-		case SB_PAGEDOWN:
-			iVscrollInc = max(1, cyClient / SizeSymbol.cyChar);
-			break;
-		case SB_THUMBTRACK:
-			iVscrollInc = HIWORD(wParam) - iVscrollPos;
-			break;
-		default:
-			iVscrollInc = 0;
-		}
-
-		iVscrollInc = max(-iVscrollPos, min(iVscrollInc, iVscrollMax - iVscrollPos));
-
-		if (iVscrollInc != 0)
-		{
-			iVscrollPos += iVscrollInc;
-			ScrollWindow(hWnd, 0, -SizeSymbol.cyChar * iVscrollInc, NULL, NULL);
-			SetScrollPos(hWnd, SB_VERT, iVscrollPos, TRUE);
-			UpdateWindow(hWnd);
-		}*/
 
 		return 0;
 	case WM_PAINT:
-		id = GetWindowLong(hWnd, GWL_ID);
-		if (FileBuf[id].lpcBuffer != NULL)
+	{
+		int ID = GetWindowLong(hWnd, GWL_ID);
+		if (UserData->FileBuf[ID].lpcBuffer != NULL)
 		{
-			Vscroll = *((VScroll*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA));
-			PaintText(hWnd, cyClient, SizeSymbol, Vscroll.iVscrollPos, FileBuf[id]);
+			PaintText(hWnd, *UserData, ID);
 		}
 		return 0;
+	}
 	case WM_DESTROY:
-		ClearBuffer(&FileBuf[0]);
-		ClearBuffer(&FileBuf[1]);
+		ClearBuffer(&UserData->FileBuf[0]);
+		ClearBuffer(&UserData->FileBuf[1]);
 
 		PostQuitMessage(0);
 		return 0;
@@ -300,14 +284,12 @@ LRESULT CALLBACK ChildWndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam
 	return 0;
 }
 
-BOOL OpenFile(HWND hWnd, FileBuffer *fBuffer, int ID)
+BOOL OpenFile(HWND hWnd, FileBuffer * FileBuf, HWND hWndEdit)
 {
-	ClearBuffer(fBuffer);
+	ClearBuffer(FileBuf);
 
-	RECT rect;
 	OPENFILENAMEW OpFileName;
 	WCHAR FileName[MAX_PATH] = {0};
-	HWND hWndEdit;
 
 	ZeroMemory(&OpFileName, sizeof(OpFileName));
 	OpFileName.lStructSize = sizeof(OpFileName);
@@ -319,25 +301,25 @@ BOOL OpenFile(HWND hWnd, FileBuffer *fBuffer, int ID)
 	OpFileName.nMaxFileTitle = 0;
 	OpFileName.lpstrInitialDir = L"E:\\Work\\HEX_VIEWER";
 	OpFileName.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-	hWndEdit = GetDlgItem(GetParent(hWnd), ID);
 	
 	if (GetOpenFileNameW(&OpFileName))
 	{
 		SetWindowText(hWndEdit, OpFileName.lpstrFile);
-		if (!ReadFromFiles(FileName, fBuffer))
+		if (!ReadFromFiles(FileName, FileBuf))
 		{
 			MessageBoxW(hWnd, L"File could not open!", L"ERROR", MB_OK);
 			return false;
 		}
 	}
+	else 
+	{
+		SetWindowText(hWndEdit, OpFileName.lpstrFile);
+	}
 	
-	GetClientRect(hWnd, &rect);
-	InvalidateRect(hWnd, &rect, TRUE);
 	return true;
 }
 
-BOOL ReadFromFiles(LPWSTR path, FileBuffer *fBuffer)
+BOOL ReadFromFiles(LPWSTR path, FileBuffer * FileBuf)
 {
 	HANDLE FileToRead = CreateFileW(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	
@@ -354,59 +336,59 @@ BOOL ReadFromFiles(LPWSTR path, FileBuffer *fBuffer)
 		return false;
 	}
 
-	*fBuffer = FileInfo(hFileMap, FileToRead);
+	*FileBuf = FileInfo(hFileMap, FileToRead);
 
 	CloseHandle(hFileMap);
 	CloseHandle(FileToRead);
 	return true;
 }
 
-void PaintText(HWND hWnd, int cyClient, TextSize SizeSymbol, int iVscrollPos, FileBuffer fBuffer)
+void PaintText(HWND hWnd, UserDataStruct UserData, int ID)
 {
-	LPCSTR TextBuffer = fBuffer.lpcBuffer + ((UINT64)iVscrollPos * NUMBER_OF_SYMBOLS_PER_LINE);
+	LPCSTR TextBuffer = UserData.FileBuf[ID].lpcBuffer + ((UINT64)UserData.Vscroll.iVscrollPos * NUMBER_OF_SYMBOLS_PER_LINE);
 	HDC hdc;
 	PAINTSTRUCT ps;
 	int y;
-	UINT64 ullCount = -1 + ((UINT64)iVscrollPos * NUMBER_OF_SYMBOLS_PER_LINE);
+	UINT64 ullCount = -1 + ((UINT64)UserData.Vscroll.iVscrollPos * NUMBER_OF_SYMBOLS_PER_LINE);
 	char cHexBuf[SIZE_HEX_BUF] = { 0 };
 	char cOffsetBuf[SIZE_OFFSET_BUF] = { 0 };
 	hdc = BeginPaint(hWnd, &ps);
 	RECT rect;
 	GetClientRect(hWnd, &rect);
 	
-	int iPaintBeg = max(-1, iVscrollPos + rect.top / SizeSymbol.cyChar - 1);
-	int iPaintEnd = min(int(fBuffer.ullNumLines), iVscrollPos + rect.bottom / SizeSymbol.cyChar);
+	int iPaintBeg = max(-1, UserData.Vscroll.iVscrollPos + rect.top / UserData.SizeSymbol.cyChar - 1);
+	int iPaintEnd = min(int(UserData.FileBuf[ID].ullNumLines), UserData.Vscroll.iVscrollPos + rect.bottom / UserData.SizeSymbol.cyChar);
 
 	for (int iteration = iPaintBeg; iteration < iPaintEnd; iteration++)
 	{
-		y = SizeSymbol.cyChar * (iteration - iVscrollPos + 1);
+		y = UserData.SizeSymbol.cyChar * (iteration - UserData.Vscroll.iVscrollPos + 1);
 		int iLenght = sprintf(cOffsetBuf, "%08X :", (iteration + 1) * NUMBER_OF_SYMBOLS_PER_LINE);
 
 		TextOutA(hdc, 0, y, cOffsetBuf, iLenght);
-		TextOutA(hdc, SizeSymbol.cxChar * SIZE_OFFSET_BUF + SizeSymbol.cxChar * SIZE_HEX_BUF * NUMBER_OF_SYMBOLS_PER_LINE, y, (LPCSTR)"|", 1);
+		TextOutA(hdc, UserData.SizeSymbol.cxChar * SIZE_OFFSET_BUF + UserData.SizeSymbol.cxChar * SIZE_HEX_BUF * NUMBER_OF_SYMBOLS_PER_LINE, y, (LPCSTR)"|", 1);
 		for (int i = 0; i < NUMBER_OF_SYMBOLS_PER_LINE; i++)
 		{
 			ullCount++; // если в последней строке все 16 символов выводит лишний офсет
-			if (ullCount == fBuffer.ullSizeBuffer)
+			if (ullCount == UserData.FileBuf[ID].ullSizeBuffer)
 			{
 				break;
 			}
 			int iSymbol = (unsigned char)*TextBuffer;
 			int iLenght = sprintf(cHexBuf, "%02X", iSymbol);
-			TextOutA(hdc, SizeSymbol.cxChar * SIZE_OFFSET_BUF + SizeSymbol.cxChar * SIZE_HEX_BUF * i, y, cHexBuf, iLenght);
+			TextOutA(hdc, UserData.SizeSymbol.cxChar * SIZE_OFFSET_BUF + UserData.SizeSymbol.cxChar * SIZE_HEX_BUF * i, y, cHexBuf, iLenght);
 
 			if (iswprint(iSymbol) == 0)
 			{
-				TextOutA(hdc, SizeSymbol.cxChar * SIZE_OFFSET_BUF + SizeSymbol.cxChar * SIZE_HEX_BUF * (NUMBER_OF_SYMBOLS_PER_LINE + 1) + SizeSymbol.cxCaps * i - SizeSymbol.cxCaps, y, (LPCSTR)".", 1);
+				TextOutA(hdc, UserData.SizeSymbol.cxChar * SIZE_OFFSET_BUF + UserData.SizeSymbol.cxChar * SIZE_HEX_BUF * (NUMBER_OF_SYMBOLS_PER_LINE + 1) + UserData.SizeSymbol.cxCaps * i - UserData.SizeSymbol.cxCaps, y, (LPCSTR)".", 1);
 			}
 			else
 			{
-				TextOutA(hdc, SizeSymbol.cxChar * SIZE_OFFSET_BUF + SizeSymbol.cxChar * SIZE_HEX_BUF * (NUMBER_OF_SYMBOLS_PER_LINE + 1) + SizeSymbol.cxCaps * i - SizeSymbol.cxCaps, y, TextBuffer, 1);
+				TextOutA(hdc, UserData.SizeSymbol.cxChar * SIZE_OFFSET_BUF + UserData.SizeSymbol.cxChar * SIZE_HEX_BUF * (NUMBER_OF_SYMBOLS_PER_LINE + 1) + UserData.SizeSymbol.cxCaps * i - UserData.SizeSymbol.cxCaps, y, TextBuffer, 1);
 			}
 			TextBuffer++;
 		}
 		
-		if (ullCount == fBuffer.ullSizeBuffer)
+		if (ullCount == UserData.FileBuf[ID].ullSizeBuffer)
 		{
 			break;
 		}
@@ -414,13 +396,13 @@ void PaintText(HWND hWnd, int cyClient, TextSize SizeSymbol, int iVscrollPos, Fi
 	EndPaint(hWnd, &ps);
 }
 
-void SetScrollBySize(HWND hWnd, int cyClient, int cyChar, int* iVscrollPos, int* iVscrollMax, UINT64 ullNumLines)
+void SetScrollBySize(HWND hWnd, int cyClient, UserDataStruct* UserData, int ID)
 {
-	*iVscrollMax = max(0, int(ullNumLines - cyClient / cyChar));
-	*iVscrollPos = min(*iVscrollPos, *iVscrollMax);
+	UserData->Vscroll.iVscrollMax = max(0, int(UserData->FileBuf[ID].ullNumLines - cyClient / UserData->SizeSymbol.cyChar));
+	UserData->Vscroll.iVscrollPos = min(UserData->Vscroll.iVscrollPos, UserData->Vscroll.iVscrollMax);
 
-	SetScrollRange(hWnd, SB_VERT, 0, *iVscrollMax, FALSE);
-	SetScrollPos(hWnd, SB_VERT, *iVscrollPos, TRUE);
+	SetScrollRange(hWnd, SB_VERT, 0, UserData->Vscroll.iVscrollMax, FALSE);
+	SetScrollPos(hWnd, SB_VERT, UserData->Vscroll.iVscrollPos, TRUE);
 }
 
 TextSize GetSizeSymbol(HWND hWnd)
@@ -444,53 +426,57 @@ TextSize GetSizeSymbol(HWND hWnd)
 
 FileBuffer FileInfo(HANDLE hFileMap, HANDLE FileToRead)
 {
-	FileBuffer fBuffer;
+	FileBuffer FileBuf;
 	PVOID MappedMemory = MapViewOfFile(hFileMap, FILE_MAP_READ, 0, 0, NULL);
-	fBuffer.lpcBuffer = (LPCSTR)MappedMemory;
+	FileBuf.lpcBuffer = (LPCSTR)MappedMemory;
 
 	LARGE_INTEGER liSize;
 	GetFileSizeEx(FileToRead, &liSize);
-	fBuffer.ullSizeBuffer = liSize.QuadPart;
+	FileBuf.ullSizeBuffer = liSize.QuadPart;
 
-	long double ldNumLines = ceill(long double(fBuffer.ullSizeBuffer) / NUMBER_OF_SYMBOLS_PER_LINE);
-	fBuffer.ullNumLines = (UINT64)ldNumLines;
-	return fBuffer;
+	long double ldNumLines = ceill(long double(FileBuf.ullSizeBuffer) / NUMBER_OF_SYMBOLS_PER_LINE);
+	FileBuf.ullNumLines = (UINT64)ldNumLines;
+	return FileBuf;
 }
 
-void ClearBuffer(FileBuffer *fBuffer)
+void ClearBuffer(FileBuffer *FileBuf)
 {
-	FileBuffer& Buf = *fBuffer;
-	if (Buf.lpcBuffer != NULL)
+	if (FileBuf->lpcBuffer != NULL)
 	{
-		UnmapViewOfFile(Buf.lpcBuffer);
-		Buf.lpcBuffer = NULL;
-		Buf.ullNumLines = 0;
-		Buf.ullSizeBuffer = 0;
+		UnmapViewOfFile(FileBuf->lpcBuffer);
+		FileBuf->lpcBuffer = NULL;
+		FileBuf->ullNumLines = 0;
+		FileBuf->ullSizeBuffer = 0;
 	}
 }
 
-void CreateChildWindow(HWND* hWnd, DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y,
-						int nWidth,int nHeight,HWND hWndParent,int hMenu, HINSTANCE hInstance, LPVOID lpParam)
+void CreateChildWindow(HWND hWnd, hWndChildWindow* hWndStruct)
 {
-	for (int i = 0; i < 2; i++)
+	for (int i = 0; i < NUMBER_OF_WINDOW; i++)
 	{
-		hWnd[i] = CreateWindowEx(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, (HMENU)(hMenu + i), hInstance, lpParam);
-		
+		hWndStruct[i].hWndChild = CreateWindowEx(WS_EX_COMPOSITED, L"HEX_VIEWER_CHILD", NULL, WS_CHILDWINDOW | WS_VISIBLE | WS_VSCROLL | WS_BORDER, 0, 0, 0, 0, hWnd, (HMENU)(0 + i), (HINSTANCE)GetWindowLong(hWnd, GWLP_HINSTANCE), NULL);
+
+		hWndStruct[i].hWndButton = CreateWindowEx(0, L"button", L">>", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | WS_BORDER, 0, 0, 0, 0, hWnd, (HMENU)(2 + i), (HINSTANCE)GetWindowLong(hWnd, GWLP_HINSTANCE), NULL);
+
+		hWndStruct[i].hWndEdit = CreateWindowEx(0, L"edit", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT, 0, 0, 0, 0, hWnd, (HMENU)(4 + i), (HINSTANCE)GetWindowLong(hWnd, GWLP_HINSTANCE), NULL);
 	}
+	
 }
 
-void MoveChildWindow(HWND* hWnd, int X, int Y, int nWidth, int nHeight, int nRatio, BOOL bRepaint)
+void MoveChildWindow(HWND hWnd, hWndChildWindow* hWndStruct, TextSize SizeSymbol)
 {
-	for (int i = 0; i < 2; i++)
+	RECT rect;
+	GetClientRect(hWnd, &rect);
+	int cxBlock = rect.right / 2;
+	int cyBlock = rect.bottom;
+
+	for (int i = 0; i < NUMBER_OF_WINDOW; i++) 
 	{
-		if (nRatio == 1)
-		{
-			MoveWindow(hWnd[i], X * (i + nRatio) - nWidth, Y, nWidth, nHeight, bRepaint);
-		}
-		else
-		{
-			MoveWindow(hWnd[i], X * i, Y, nWidth, nHeight, bRepaint);
-		}
+		MoveWindow(hWndStruct[i].hWndChild, cxBlock * i, SizeSymbol.nHeightButton, cxBlock, cyBlock - SizeSymbol.nHeightButton, TRUE);
+
+		MoveWindow(hWndStruct[i].hWndButton, cxBlock * (i + 1) - 4 * SizeSymbol.cxCaps, 0, 4 * SizeSymbol.cxCaps, SizeSymbol.nHeightButton, TRUE);
+
+		MoveWindow(hWndStruct[i].hWndEdit, cxBlock * i, 0, cxBlock - 4 * SizeSymbol.cxCaps, SizeSymbol.nHeightButton, TRUE);
 	}
 }
 
