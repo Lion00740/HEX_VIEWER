@@ -35,44 +35,20 @@ struct VScroll
 	int iVscrollInc = 0;
 };
 
-//struct UserDataStruct
-//{
-//	struct TextSize 
-//	{
-//		int cxChar = 0, cyChar = 0, cxCaps = 0;
-//		int nHeightButton = 0;
-//	} SizeSymbol;
-//	
-//	struct VScroll
-//	{
-//		int iVscrollMax = 0;
-//		int iVscrollPos = 0;
-//		int iVscrollInc = 0;
-//	} Vscroll;
-//
-//	struct FileBuffer 
-//	{
-//		LPCSTR lpcBuffer = NULL;
-//		UINT64 ullSizeBuffer = 0;
-//		UINT64 ullNumLines = 0;
-//	} FileBuf;
-//
-//};
-
 struct UserDataStruct
 {
 	TextSize SizeSymbol;
 	VScroll Vscroll;
 	FileBuffer FileBuf[NUMBER_OF_WINDOW];
-	UINT64 ullMaxNumlines = 0;
+	UINT64 ullMaxNumLines = 0;
 };
 
 LRESULT CALLBACK	WndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam, _In_ LPARAM lParam);
 LRESULT CALLBACK	ChildWndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam, _In_ LPARAM lParam);
 BOOL				ReadFromFiles(LPWSTR path, FileBuffer *FileBuf);
-BOOL				OpenFile(HWND hWnd, FileBuffer *FileBuf, HWND hWndEdit);
+BOOL				OpenFileParams(HWND hWnd, FileBuffer *FileBuf, HWND hWndEdit);
 void				PaintText(HWND hWnd, UserDataStruct UserData, int ID);
-void				SetScrollBySize(HWND hWnd, int cyClient, UserDataStruct* UserData, int ID);
+void				SetScrollBySize(HWND hWnd, int cyClient, UserDataStruct* UserData);
 TextSize			GetSizeSymbol(HWND hWnd);
 FileBuffer			FileInfo(HANDLE hFileMap, HANDLE FileToRead);
 void				ClearBuffer(FileBuffer* FileBuf);
@@ -155,21 +131,24 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam,
 		{
 		case 2:
 			
-			if (!OpenFile(hWnd, &UserData.FileBuf[0], hWndStruct[0].hWndEdit))
+			if (!OpenFileParams(hWnd, &UserData.FileBuf[0], hWndStruct[0].hWndEdit))
 			{
 				break;
 			}
+
 			SendMessage(hWndStruct[0].hWndChild, WM_COMMAND, wParam, lParam);
 			break;
 		case 3:
 			
-			if (!OpenFile(hWnd, &UserData.FileBuf[1], hWndStruct[1].hWndEdit))
+			if (!OpenFileParams(hWnd, &UserData.FileBuf[1], hWndStruct[1].hWndEdit))
 			{
 				break;
 			}
+
 			SendMessage(hWndStruct[1].hWndChild, WM_COMMAND, wParam, lParam);
 			break;
 		}
+
 		return 0;
 	case WM_SIZE: 
 	{
@@ -231,32 +210,34 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam,
 }
 
 LRESULT CALLBACK ChildWndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-	static UserDataStruct* UserData;
-	static int cyClient;
-	
+{	
 	switch (iMsg)
 	{
 	case WM_CREATE:
-		UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
+		
 		return 0;
 	case WM_COMMAND:
 	{
-		int ID = GetWindowLong(hWnd, GWL_ID);
+		UserDataStruct* UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
+		//int ID = GetWindowLong(hWnd, GWL_ID);
+		int cyClient = HIWORD(lParam);
 
 		UserData->Vscroll.iVscrollPos = 0;
-		SetScrollBySize(hWnd, cyClient, UserData, ID);
+		UserData->ullMaxNumLines = max(UserData->FileBuf[0].ullNumLines, UserData->FileBuf[1].ullNumLines);
+		
+		SetScrollBySize(hWnd, cyClient, UserData);
 		
 		return 0; 
 	}
 	case WM_SIZE:
 	{
-		int ID = GetWindowLong(hWnd, GWL_ID);
+		UserDataStruct* UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
+		//int ID = GetWindowLong(hWnd, GWL_ID);
+		int cyClient = HIWORD(lParam);
 
-		cyClient = HIWORD(lParam);
-		SetScrollBySize(hWnd, cyClient, UserData, ID);
+		SetScrollBySize(hWnd, cyClient, UserData);
 		
-		return 0; 
+		return 0;
 	}
 	case WM_VSCROLL:
 
@@ -265,26 +246,36 @@ LRESULT CALLBACK ChildWndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wP
 		return 0;
 	case WM_PAINT:
 	{
+		UserDataStruct* UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
 		int ID = GetWindowLong(hWnd, GWL_ID);
-		if (UserData->FileBuf[ID].lpcBuffer != NULL)
+		int cyClient = HIWORD(lParam);
+		if (UserData->FileBuf[0].lpcBuffer != NULL && UserData->FileBuf[1].lpcBuffer != NULL)
 		{
+			//SetScrollBySize(hWnd, cyClient, UserData);
 			PaintText(hWnd, *UserData, ID);
 		}
+
 		return 0;
 	}
-	case WM_DESTROY:
-		ClearBuffer(&UserData->FileBuf[0]);
-		ClearBuffer(&UserData->FileBuf[1]);
+	case WM_DESTROY: 
+	{
+		UserDataStruct* UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
+
+		for (int i = 0; i < NUMBER_OF_WINDOW; i++) 
+		{
+			ClearBuffer(&UserData->FileBuf[i]);
+		}
 
 		PostQuitMessage(0);
-		return 0;
+		return 0; 
+	}
 	default:
 		return DefWindowProc(hWnd, iMsg, wParam, lParam);
 	}
 	return 0;
 }
 
-BOOL OpenFile(HWND hWnd, FileBuffer * FileBuf, HWND hWndEdit)
+BOOL OpenFileParams(HWND hWnd, FileBuffer * FileBuf, HWND hWndEdit)
 {
 	ClearBuffer(FileBuf);
 
@@ -348,10 +339,8 @@ void PaintText(HWND hWnd, UserDataStruct UserData, int ID)
 	LPCSTR TextBuffer = UserData.FileBuf[ID].lpcBuffer + ((UINT64)UserData.Vscroll.iVscrollPos * NUMBER_OF_SYMBOLS_PER_LINE);
 	HDC hdc;
 	PAINTSTRUCT ps;
-	int y;
 	UINT64 ullCount = -1 + ((UINT64)UserData.Vscroll.iVscrollPos * NUMBER_OF_SYMBOLS_PER_LINE);
-	char cHexBuf[SIZE_HEX_BUF] = { 0 };
-	char cOffsetBuf[SIZE_OFFSET_BUF] = { 0 };
+	
 	hdc = BeginPaint(hWnd, &ps);
 	RECT rect;
 	GetClientRect(hWnd, &rect);
@@ -361,6 +350,8 @@ void PaintText(HWND hWnd, UserDataStruct UserData, int ID)
 
 	for (int iteration = iPaintBeg; iteration < iPaintEnd; iteration++)
 	{
+		int y;
+		char cOffsetBuf[SIZE_OFFSET_BUF] = { 0 };
 		y = UserData.SizeSymbol.cyChar * (iteration - UserData.Vscroll.iVscrollPos + 1);
 		int iLenght = sprintf(cOffsetBuf, "%08X :", (iteration + 1) * NUMBER_OF_SYMBOLS_PER_LINE);
 
@@ -368,6 +359,7 @@ void PaintText(HWND hWnd, UserDataStruct UserData, int ID)
 		TextOutA(hdc, UserData.SizeSymbol.cxChar * SIZE_OFFSET_BUF + UserData.SizeSymbol.cxChar * SIZE_HEX_BUF * NUMBER_OF_SYMBOLS_PER_LINE, y, (LPCSTR)"|", 1);
 		for (int i = 0; i < NUMBER_OF_SYMBOLS_PER_LINE; i++)
 		{
+			char cHexBuf[SIZE_HEX_BUF] = { 0 };
 			ullCount++; // если в последней строке все 16 символов выводит лишний офсет
 			if (ullCount == UserData.FileBuf[ID].ullSizeBuffer)
 			{
@@ -396,9 +388,9 @@ void PaintText(HWND hWnd, UserDataStruct UserData, int ID)
 	EndPaint(hWnd, &ps);
 }
 
-void SetScrollBySize(HWND hWnd, int cyClient, UserDataStruct* UserData, int ID)
+void SetScrollBySize(HWND hWnd, int cyClient, UserDataStruct* UserData)
 {
-	UserData->Vscroll.iVscrollMax = max(0, int(UserData->FileBuf[ID].ullNumLines - cyClient / UserData->SizeSymbol.cyChar));
+	UserData->Vscroll.iVscrollMax = max(0, int(UserData->ullMaxNumLines - cyClient / UserData->SizeSymbol.cyChar));
 	UserData->Vscroll.iVscrollPos = min(UserData->Vscroll.iVscrollPos, UserData->Vscroll.iVscrollMax);
 
 	SetScrollRange(hWnd, SB_VERT, 0, UserData->Vscroll.iVscrollMax, FALSE);
