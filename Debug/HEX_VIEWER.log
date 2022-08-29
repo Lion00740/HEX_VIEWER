@@ -1,2 +1,7 @@
-﻿  hex_viewer.cpp
+﻿  FileHandler.cpp
+  PaintText.cpp
+  Scroll.cpp
+  WindowsProcedure.cpp
+  hex_viewer.cpp
+  Создание кода...
   HEX_VIEWER.vcxproj -> E:\Work\HEX_VIEWER\Debug\HEX_VIEWER.exe

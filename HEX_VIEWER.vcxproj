@@ -139,7 +139,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CreateAndMoveChild.cpp" />
+    <ClCompile Include="FileHandler.cpp" />
     <ClCompile Include="hex_viewer.cpp" />
+    <ClCompile Include="PaintText.cpp" />
+    <ClCompile Include="Scroll.cpp" />
+    <ClCompile Include="SymbolParameters.cpp" />
+    <ClCompile Include="WindowsProcedure.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="AllStruct.h" />
+    <ClInclude Include="CreateAndMoveChild.h" />
+    <ClInclude Include="FileHandler.h" />
+    <ClInclude Include="Macros.h" />
+    <ClInclude Include="PaintText.h" />
+    <ClInclude Include="Scroll.h" />
+    <ClInclude Include="SymbolParameters.h" />
+    <ClInclude Include="WindowsProcedure.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
