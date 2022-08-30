@@ -57,18 +57,19 @@ BOOL ReadFromFiles(_In_ LPWSTR path, _Inout_ FileData* FileBuf)
 	*FileBuf = FileInfo(hFileMap, hFileToRead);
 
 	CloseHandle(hFileMap);
-	CloseHandle(hFileToRead);
+	
 	return TRUE;
 }
 
-FileData FileInfo(_In_ HANDLE hFileMap, _In_ HANDLE FileToRead)
+FileData FileInfo(_In_ HANDLE hFileMap, _In_ HANDLE hFileToRead)
 {
 	FileData		FileBuf;
 	PVOID			MappedMemory = MapViewOfFile(hFileMap, FILE_MAP_READ, 0, 0, 0);
 	LARGE_INTEGER	liSize;
 	memset(&liSize, 0, sizeof(LARGE_INTEGER));
 
-	GetFileSizeEx(FileToRead, &liSize);
+	GetFileSizeEx(hFileToRead, &liSize);
+	CloseHandle(hFileToRead);
 
 	FileBuf.lpcBuffer = (LPCSTR)MappedMemory;
 	FileBuf.ullSizeBuffer = liSize.QuadPart;

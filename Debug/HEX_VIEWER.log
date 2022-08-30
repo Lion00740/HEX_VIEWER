@@ -1,6 +1,8 @@
-﻿  FileHandler.cpp
+﻿  CreateAndMoveChild.cpp
+  FileHandler.cpp
   PaintText.cpp
   Scroll.cpp
+  SymbolParameters.cpp
   WindowsProcedure.cpp
   hex_viewer.cpp
   Создание кода...

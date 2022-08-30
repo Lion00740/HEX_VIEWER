@@ -50,5 +50,6 @@ struct UserDataStruct
 	SymbolParams	SizeSymbol;						// Данные символа.
 	VScroll			Vscroll;						// Данные скролла.
 	FileData		FileBuf[NUMBER_OF_WINDOW];		// Массив хранящий информацию о файле для каждого окна.
-	UINT64			ullMaxNumLines = 0;				// Максимальная позиция для каждого из скроллов.
+	ULONGLONG		ullMaxNumLines = 0;				// Максимальная позиция для каждого из скроллов.
+	UINT			ullGranularity = 0;				// Гранулярность (всегда 64 Кб)
 };

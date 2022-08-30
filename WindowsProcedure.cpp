@@ -8,7 +8,12 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam,
 	switch (iMsg)
 	{
 	case WM_CREATE:
+		SYSTEM_INFO sinf;
+		memset(&sinf, 0, sizeof(SYSTEM_INFO));
 
+		GetSystemInfo(&sinf);
+
+		UserData.ullGranularity = sinf.dwAllocationGranularity;
 		UserData.SizeSymbol = GetParamsSymbol(hWnd);
 
 		SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG)&UserData);
