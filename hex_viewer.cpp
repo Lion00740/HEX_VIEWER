@@ -9,8 +9,11 @@
 #define SIZE_HEX_BUF 3
 #define SIZE_OFFSET_BUF 11
 
-LPCSTR g_lpcBuffer;
-UINT64 g_ullSizelpcBuffer;
+LPCSTR	g_lpcBuffer;
+UINT64	g_ullSizelpcBuffer;
+UINT	g_uiGranularity;
+ULONGLONG g_ullSizeFile;
+UINT	g_BottomOffset;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam);
 void WndMenu(HWND hWnd);
@@ -80,11 +83,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	TEXTMETRIC tm;
 	int iVscrollInc;
 	static int cxChar, cyChar, cxCaps, cyClient, iVscrollMax, iVscrollPos;
-	static UINT64 ullNumLines; 
+	static UINT64 ullNumLines;
+	SCROLLINFO slif;
 	
 	switch (iMsg)
 	{
 	case WM_CREATE:
+		
+		SYSTEM_INFO sinf;
+		GetSystemInfo(&sinf);
+		g_uiGranularity = sinf.dwAllocationGranularity;
 		// вынести в отдельную функцию
 		hdc = GetDC(hWnd);
 
@@ -138,7 +146,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			iVscrollInc = max(1, cyClient / cyChar);
 			break;
 		case SB_THUMBTRACK:
-			iVscrollInc = HIWORD(wParam) - iVscrollPos;
+			slif.cbSize = sizeof(SCROLLINFO);
+			slif.fMask = SIF_TRACKPOS;
+			GetScrollInfo(hWnd, SB_VERT, &slif);
+
+			iVscrollInc = slif.nTrackPos - iVscrollPos;
 			break;
 		default:
 			iVscrollInc = 0;
@@ -313,7 +325,7 @@ bool OpenFile(HWND hWnd, UINT64* ullNumLines)
 			return false;
 		}
 	}
-	long double ldNumLines = ceill(long double(g_ullSizelpcBuffer) / NUMBER_OF_SYMBOLS_PER_LINE);
+	long double ldNumLines = ceill(long double(g_ullSizeFile) / NUMBER_OF_SYMBOLS_PER_LINE);
 	*ullNumLines = (UINT64)ldNumLines;
 	GetClientRect(hWnd, &rect);
 	InvalidateRect(hWnd, &rect, TRUE);
@@ -337,16 +349,40 @@ bool ReadFromFiles(LPWSTR path)
 		return false;
 	}
 
-	PVOID MappedMemory = MapViewOfFile(hFileMap, FILE_MAP_READ, 0, 0, NULL);
+	g_BottomOffset = g_uiGranularity;
+
+	DWORD dwFileSizeHigh = 0;
+
+	g_ullSizeFile = GetFileSize(FileToRead, &dwFileSizeHigh);
+	g_ullSizeFile += (((ULONGLONG)dwFileSizeHigh) << 32);
+
+	CloseHandle(FileToRead);
+
+	ULONGLONG ullFileOffset = 0;
+	DWORD dwBytesInBlock = g_uiGranularity;
+
+	if (g_ullSizeFile < g_uiGranularity) 
+	{
+		dwBytesInBlock = (DWORD)g_ullSizeFile;
+	}
+
+	PVOID MappedMemory = MapViewOfFile(	hFileMap, 
+										FILE_MAP_READ, 
+										(DWORD)(ullFileOffset >> 32), 
+										(DWORD)(ullFileOffset & 0xFFFFFFFF), 
+										dwBytesInBlock
+	);
+
 	g_lpcBuffer = (LPCSTR)MappedMemory;
 
-	LARGE_INTEGER liSize;
-	GetFileSizeEx(FileToRead, &liSize);
-	g_ullSizelpcBuffer = liSize.QuadPart;
-
 	CloseHandle(hFileMap);
-	CloseHandle(FileToRead);
+	
 	return true;
+}
+
+void doSomething() 
+{
+	
 }
 
 void PaintText(HWND hWnd, int cyClient, int cxChar, int cyChar, int cxCaps, int iVscrollPos, UINT64 ullNumLines)
@@ -375,7 +411,7 @@ void PaintText(HWND hWnd, int cyClient, int cxChar, int cyChar, int cxCaps, int 
 		for (int i = 0; i < NUMBER_OF_SYMBOLS_PER_LINE; i++)
 		{
 			ullCount++; // если в последней строке все 16 символов выводит лишний офсет
-			if (ullCount == g_ullSizelpcBuffer)
+			if (ullCount == g_ullSizeFile)
 			{
 				break;
 			}
@@ -395,7 +431,7 @@ void PaintText(HWND hWnd, int cyClient, int cxChar, int cyChar, int cxCaps, int 
 		}
 		TextOutA(hdc, cxChar * SIZE_OFFSET_BUF + cxChar * SIZE_HEX_BUF * NUMBER_OF_SYMBOLS_PER_LINE, y, (LPCSTR)"|", 1);
 		
-		if (ullCount == g_ullSizelpcBuffer)
+		if (ullCount == g_ullSizeFile)
 		{
 			break;
 		}
