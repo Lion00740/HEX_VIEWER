@@ -16,8 +16,8 @@
 
 VOID
 ScrollEventsControl(_In_	WPARAM				wParam,
-	_In_	HWND				hWnd,
-	_Inout_ hWndChildWindows* hWndStruct
+					_In_	HWND				hWnd,
+					_Inout_ hWndChildWindows*	hWndStruct
 );
 
 /// <summary>
@@ -35,6 +35,6 @@ ScrollEventsControl(_In_	WPARAM				wParam,
 
 VOID
 SetScrollBySize(_In_		HWND			hWnd,
-	_In_		INT				cyClient,
-	_Inout_		UserDataStruct* UserData
+				_In_		INT				cyClient,
+				_Inout_		UserDataStruct* UserData
 );

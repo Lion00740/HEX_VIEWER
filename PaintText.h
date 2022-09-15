@@ -16,8 +16,8 @@
 /// </param>
 
 VOID				
-PaintAllLine(_In_ HWND				hWnd, 
-			 _In_ UserDataStruct	UserData, 
+PaintAllLine(_In_ HWND				hWnd,
+			 _In_ UserDataStruct	UserData,
 			 _In_ INT				ID
 );
 
@@ -42,14 +42,14 @@ PaintAllLine(_In_ HWND				hWnd,
 /// <param name="y">
 ///		ѕозици€ строки относительно вертикали.
 /// </param>
-
 VOID				
 PaintLine(_In_		HDC				hdc,
-		  _In_		LPCSTR*			TextBuffer,
+		  _In_		PBYTE			TextBuffer,
 		  _Inout_	ULONGLONG*		ullCount, 
 		  _In_		UserDataStruct	UserData,
 		  _In_		INT				ID, 
-		  _In_		INT				y
+		  _In_		INT				y, 
+					ULONGLONG		increment
 );
 
 /// <summary>
@@ -67,7 +67,6 @@ PaintLine(_In_		HDC				hdc,
 /// <param name="y">
 ///		ѕозици€ строки относительно вертикали.
 /// </param>
-
 VOID				
 PaintOffset(_In_ HDC			hdc, 
 			_In_ UserDataStruct UserData, 

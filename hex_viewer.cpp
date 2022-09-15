@@ -2,13 +2,17 @@
 
 INT WINAPI WinMain(_In_ HINSTANCE hInst, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR lpCmdLine, _In_ int iCmdShow)
 {
+	UNREFERENCED_PARAMETER(lpCmdLine);
+	UNREFERENCED_PARAMETER(hPrevInst);
+
 	HWND		hWnd;
-	memset(&hWnd, 0, sizeof(HWND));
 	MSG			msg;
-	memset(&msg, 0, sizeof(MSG));
-	WCHAR		AppName[] = L"HEX_VIEWER";
 	WNDCLASSEX	wcex;
-	memset(&wcex, 0, sizeof(WNDCLASSEX));
+	TCHAR		AppName[] = L"HEX_VIEWER";
+	
+	ZeroMemory(&hWnd, sizeof(HWND));
+	ZeroMemory(&msg, sizeof(MSG));
+	ZeroMemory(&wcex, sizeof(WNDCLASSEX));
 
 	wcex.cbSize			= sizeof(WNDCLASSEX);
 	wcex.style			= CS_HREDRAW | CS_VREDRAW;
@@ -39,7 +43,7 @@ INT WINAPI WinMain(_In_ HINSTANCE hInst, _In_opt_ HINSTANCE hPrevInst, _In_ LPST
 		return EXIT_FAILURE;
 	}
 
-	hWnd = CreateWindowExW(
+	hWnd = CreateWindowEx(
 		0, 
 		AppName, 
 		L"HEX_VIEWER", 
@@ -68,14 +72,12 @@ INT WINAPI WinMain(_In_ HINSTANCE hInst, _In_opt_ HINSTANCE hPrevInst, _In_ LPST
 	return (int)msg.wParam;
 }
 
-// в функции не больше 7 параметров
 // success
 // создать дочернее окно которое будет в себе содержать все остальные дочерние окна, в том числе окно вывода текста (для того чтобы сделать сколько угодно окошек)
 // переименовать функции, переменные
-// вывести ullCount за пределы функции 
-// сделать TextBuffer по индексу 
-// добавить новые функции 
-// переименовать ullcount
-// исправить проблему с отрисовкой лишнего буфера
+// вывести ullCount за пределы функции
 // исправить проблемы со скролом
 // исправить проблему с перерисовкой
+// скачать решарпер (много вкусных функций, также в нем есть errorlockup) or visual assist (тоже приятная вещь)
+// scrollwinodow (в конце есть параметры интересные, нужно про них почитать)
+// первый параметр количество файлов, второй имя (не помню про что это)

@@ -1,11 +1,13 @@
 #include "Scroll.h"
+#include "FileHandler.h"
 
 void ScrollEventsControl(_In_ WPARAM wParam, _In_ HWND hWnd, _Inout_ hWndChildWindows* hWndStruct)
 {
-	UserDataStruct* UserData = (UserDataStruct*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+	UserDataStruct*		UserData	= (UserDataStruct*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 	RECT				rect;
-	memset(&rect, 0, sizeof(RECT));
-	VScroll* Vscroll = &UserData->Vscroll;
+	VScroll*			Vscroll		= &UserData->Vscroll;
+
+	ZeroMemory(&rect, sizeof(RECT));
 
 	GetClientRect(hWnd, &rect);
 
@@ -24,8 +26,26 @@ void ScrollEventsControl(_In_ WPARAM wParam, _In_ HWND hWnd, _Inout_ hWndChildWi
 		Vscroll->iVscrollInc = max(1, (rect.bottom - UserData->SizeSymbol.cyHeightButton) / UserData->SizeSymbol.cyChar);
 		break;
 	case SB_THUMBTRACK:
-		Vscroll->iVscrollInc = HIWORD(wParam) - Vscroll->iVscrollPos;
+	{
+		SCROLLINFO slif;
+		ZeroMemory(&slif, sizeof(slif));
+		slif.cbSize = sizeof(SCROLLINFO);
+		slif.fMask = SIF_TRACKPOS;
+		
+		// TODO ERRROR
+
+		/*for (INT i = 0; i < NUMBER_OF_WINDOW; i++)
+		{
+			GetScrollInfo(hWndStruct[i].hWndChild, SB_VERT, &slif);
+		}*/
+		GetScrollInfo(hWndStruct[0].hWndChild, SB_VERT, &slif);
+		
+		Vscroll->iVscrollInc = slif.nTrackPos - Vscroll->iVscrollPos;
+		if (Vscroll->iVscrollInc > 0) {
+			printf("");
+		}
 		break;
+	}
 	default:
 		Vscroll->iVscrollInc = 0;
 	}
@@ -36,12 +56,27 @@ void ScrollEventsControl(_In_ WPARAM wParam, _In_ HWND hWnd, _Inout_ hWndChildWi
 	{
 
 		Vscroll->iVscrollPos += Vscroll->iVscrollInc;
-		for (INT i = 0; i < 2; i++)
+		UserData->ullIncrement = (ULONGLONG)Vscroll->iVscrollPos * NUMBER_OF_SYMBOLS_PER_LINE;
+		for (INT i = 0; i < NUMBER_OF_WINDOW; i++)
 		{
 			ScrollWindow(hWndStruct[i].hWndChild, 0, -UserData->SizeSymbol.cyChar * Vscroll->iVscrollInc, NULL, NULL);
 			SetScrollPos(hWndStruct[i].hWndChild, SB_VERT, Vscroll->iVscrollPos, TRUE);
 			UpdateWindow(hWndStruct[i].hWndChild);
 		}
+	}
+
+	for (INT i = 0; i < NUMBER_OF_WINDOW; i++)
+	{
+		if (UserData->FileBuf[i].ullSizeBuffer > (ULONGLONG)UserData->FileBuf[i].uiGranularity * 2 
+			/*&& Vscroll->iVscrollPos < (UserData->FileBuf[i].ullSizeBuffer / NUMBER_OF_SYMBOLS_PER_LINE)*/)
+		{
+			MoveToMap(&UserData->FileBuf[i], UserData->ullIncrement, *Vscroll);
+		}
+	}
+
+	if (Vscroll->iVscrollInc < 0 || Vscroll->iVscrollInc > Vscroll->iVscrollMax)
+	{
+		printf("");
 	}
 }
 

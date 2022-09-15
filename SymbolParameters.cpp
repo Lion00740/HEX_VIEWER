@@ -4,9 +4,12 @@ SymbolParams GetParamsSymbol(_In_ HWND hWnd)
 {
 	SymbolParams	size;
 	TEXTMETRIC		tm;
-	memset(&tm, 0, sizeof(TEXTMETRIC));
 	HDC				hdc;
-	memset(&hdc, 0, sizeof(HDC));
+
+	ZeroMemory(&size, sizeof(SymbolParams));
+	ZeroMemory(&tm, sizeof(TEXTMETRIC));
+	ZeroMemory(&hdc, sizeof(HDC));
+
 	hdc = GetDC(hWnd);
 
 	GetTextMetrics(hdc, &tm);

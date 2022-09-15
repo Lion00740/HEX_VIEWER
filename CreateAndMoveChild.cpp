@@ -46,9 +46,10 @@ void CreateChildWindow(_In_ HWND hWnd, _Inout_ hWndChildWindows* hWndStruct)
 void MoveChildWindow(_In_ HWND hWnd, _Inout_ hWndChildWindows* hWndStruct, _In_ SymbolParams SizeSymbol)
 {
 	RECT	rect;
-	memset(&rect, 0, sizeof(RECT));
 	INT		cxBlock = 0;
 	INT		cyBlock = 0;
+
+	ZeroMemory(&rect, sizeof(RECT));
 
 	GetClientRect(hWnd, &rect);
 

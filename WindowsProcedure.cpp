@@ -8,12 +8,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam,
 	switch (iMsg)
 	{
 	case WM_CREATE:
-		SYSTEM_INFO sinf;
-		memset(&sinf, 0, sizeof(SYSTEM_INFO));
-
-		GetSystemInfo(&sinf);
-
-		UserData.ullGranularity = sinf.dwAllocationGranularity;
+		
 		UserData.SizeSymbol = GetParamsSymbol(hWnd);
 
 		SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG)&UserData);
@@ -58,31 +53,40 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam,
 		return 0;
 	}
 	case WM_DESTROY:
+
+		for (INT i = 0; i < NUMBER_OF_WINDOW; i++)
+		{
+			ClearBuffer(&UserData.FileBuf[i]);
+		}
+
 		PostQuitMessage(0);
 		return 0;
 	default:
 		return DefWindowProc(hWnd, iMsg, wParam, lParam);
 	}
-	return 0;
 }
 
 LRESULT CALLBACK ChildWndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
 	switch (iMsg)
 	{
-	case WM_CREATE:
-
-		return 0;
 	case WM_COMMAND:
 	{
 		UserDataStruct*		UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
-		INT					cyClient = HIWORD(lParam);
+		if (UserData->FileBuf[0].pbBuffer != NULL && UserData->FileBuf[1].pbBuffer != NULL)
+		{
+			RECT rect;
 
-		UserData->Vscroll.iVscrollPos = 0;
-		UserData->ullMaxNumLines = max(UserData->FileBuf[0].ullNumLines, UserData->FileBuf[1].ullNumLines);
+			ZeroMemory(&rect, sizeof(RECT));
 
-		SetScrollBySize(hWnd, cyClient, UserData);
+			GetClientRect(hWnd, &rect);
 
+			UserData->Vscroll.iVscrollPos = 0;
+			UserData->ullMaxNumLines = max(UserData->FileBuf[0].ullNumLines, UserData->FileBuf[1].ullNumLines);
+
+			//SetScrollBySize(hWnd, rect.bottom, UserData);
+		}
+		// Отправить событие перирисовки
 		return 0;
 	}
 	case WM_SIZE:
@@ -102,11 +106,15 @@ LRESULT CALLBACK ChildWndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wP
 	case WM_PAINT:
 	{
 		UserDataStruct*		UserData =	(UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
-		INT					ID =		GetWindowLong(hWnd, GWL_ID);
-		INT					cyClient =	HIWORD(lParam);
+		INT					ID		 =	GetWindowLong(hWnd, GWL_ID);
+		RECT rect;
 
-		if (UserData->FileBuf[0].lpcBuffer != NULL && UserData->FileBuf[1].lpcBuffer != NULL) // работает когда все файлы выбраны
+		ZeroMemory(&rect, sizeof(RECT));
+
+		
+		if (UserData->FileBuf[0].pbBuffer != NULL && UserData->FileBuf[1].pbBuffer != NULL) // работает когда все файлы выбраны
 		{
+			SetScrollBySize(hWnd, rect.bottom, UserData);
 			PaintAllLine(hWnd, *UserData, ID);
 		}
 
@@ -114,18 +122,74 @@ LRESULT CALLBACK ChildWndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wP
 	}
 	case WM_DESTROY:
 	{
-		UserDataStruct* UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
-
-		for (INT i = 0; i < NUMBER_OF_WINDOW; i++)
-		{
-			ClearBuffer(&UserData->FileBuf[i]);
-		}
-
 		PostQuitMessage(0);
 		return 0;
 	}
 	default:
 		return DefWindowProc(hWnd, iMsg, wParam, lParam);
 	}
-	return 0;
+}
+
+LRESULT CALLBACK OutputTextWndProc(_In_ HWND hWnd, _In_opt_ UINT iMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+{
+	switch (iMsg)
+	{
+	case WM_COMMAND:
+	{
+		UserDataStruct* UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
+		if (UserData->FileBuf[0].pbBuffer != NULL && UserData->FileBuf[1].pbBuffer != NULL)
+		{
+			RECT rect;
+
+			ZeroMemory(&rect, sizeof(RECT));
+
+			GetClientRect(hWnd, &rect);
+
+			UserData->Vscroll.iVscrollPos = 0;
+			UserData->ullMaxNumLines = max(UserData->FileBuf[0].ullNumLines, UserData->FileBuf[1].ullNumLines);
+
+			//SetScrollBySize(hWnd, rect.bottom, UserData);
+		}
+		// Отправить событие перирисовки
+		return 0;
+	}
+	case WM_SIZE:
+	{
+		UserDataStruct* UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
+		INT					cyClient = HIWORD(lParam);
+
+		SetScrollBySize(hWnd, cyClient, UserData);
+
+		return 0;
+	}
+	case WM_VSCROLL:
+
+		SendMessage(GetParent(hWnd), WM_VSCROLL, wParam, lParam);
+
+		return 0;
+	case WM_PAINT:
+	{
+		UserDataStruct* UserData = (UserDataStruct*)GetWindowLongPtr(GetParent(hWnd), GWLP_USERDATA);
+		INT					ID = GetWindowLong(hWnd, GWL_ID);
+		RECT rect;
+
+		ZeroMemory(&rect, sizeof(RECT));
+
+
+		if (UserData->FileBuf[0].pbBuffer != NULL && UserData->FileBuf[1].pbBuffer != NULL) // работает когда все файлы выбраны
+		{
+			SetScrollBySize(hWnd, rect.bottom, UserData);
+			PaintAllLine(hWnd, *UserData, ID);
+		}
+
+		return 0;
+	}
+	case WM_DESTROY:
+	{
+		PostQuitMessage(0);
+		return 0;
+	}
+	default:
+		return DefWindowProc(hWnd, iMsg, wParam, lParam);
+	}
 }

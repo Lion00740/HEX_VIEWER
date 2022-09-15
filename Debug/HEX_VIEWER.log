@@ -1,9 +1,2 @@
-﻿  CreateAndMoveChild.cpp
-  FileHandler.cpp
-  PaintText.cpp
-  Scroll.cpp
-  SymbolParameters.cpp
-  WindowsProcedure.cpp
-  hex_viewer.cpp
-  Создание кода...
+﻿  WindowsProcedure.cpp
   HEX_VIEWER.vcxproj -> E:\Work\HEX_VIEWER\Debug\HEX_VIEWER.exe

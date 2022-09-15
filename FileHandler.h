@@ -16,8 +16,8 @@
 /// </returns>
 
 BOOL
-ReadFromFiles(_In_		LPWSTR		path,
-	_Inout_	FileData* FileBuf
+ReadFromFiles(	_In_		LPWSTR		path,
+				_Inout_		FileData*	FileBuf
 );
 
 /// <summary>
@@ -38,9 +38,9 @@ ReadFromFiles(_In_		LPWSTR		path,
 /// </returns>
 
 BOOL
-OpenFileParams(_In_		HWND		hWnd,
-	_Inout_	FileData* FileBuf,
-	_In_		HWND		hWndEdit
+OpenFileParams(	_In_		HWND		hWnd,
+				_Inout_		FileData*	FileBuf,
+				_In_		HWND		hWndEdit
 );
 
 /// <summary>
@@ -56,10 +56,25 @@ OpenFileParams(_In_		HWND		hWnd,
 ///		Возвращает структуру с данными файла.
 /// </returns>
 
-FileData
-FileInfo(_In_ HANDLE hFileMap,
-	_In_ HANDLE FileToRead
+void
+FileInfo(_In_ HANDLE FileToRead,
+		 _Out_ FileData* FileBuf
 );
+
+/// <summary>
+///		Функция для передвижению по мапингу относительно скролла.
+/// </summary>
+/// <param name="FileBuf">
+///		Структура для хранения данных файла.
+/// </param>
+/// <param name="ullFileOffSet">
+///		Смещение в файле.
+/// </param>
+/// <param name="Vscroll">
+///		Структура для хранения данных скролла.
+/// </param>
+
+void MoveToMap(FileData* FileBuf, ULONGLONG ullFileOffSet, VScroll Vscroll);
 
 /// <summary>
 ///		Функция для очистки структуры FileData.

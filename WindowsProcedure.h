@@ -62,3 +62,11 @@ ChildWndProc(_In_		HWND	hWnd,
 			 _In_		WPARAM	wParam,
 			 _In_		LPARAM	lParam
 );
+
+LRESULT
+CALLBACK
+OutputTextWndProc(	_In_		HWND	hWnd,
+					_In_opt_	UINT	iMsg,
+					_In_		WPARAM	wParam,
+					_In_		LPARAM	lParam
+);
